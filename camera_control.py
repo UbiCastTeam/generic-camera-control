@@ -41,13 +41,22 @@ def do_request(url):
     return response
 
 
+def generic_preset(urls, ip, params, proxy):
+    url = urls['preset_call'].format(ip=ip, params=params)
+    if proxy:
+        url = url.replace('http://', proxy)
+    logger.debug('Call preset %s' % url)
+    do_request(url)
+
+
+def panasonic_generic(action, params, ip, model, proxy, urls):
+    if action == 'preset':
+        generic_preset(urls, ip, params, proxy)
+
+
 def sony_generic(action, params, ip, model, proxy, urls):
     if action == 'preset':
-        url = urls['preset_call'].format(ip=ip, params=params)
-        if proxy:
-            url = url.replace('http://', proxy)
-        logger.debug('Call preset %s' % url)
-        do_request(url)
+        generic_preset(urls, ip, params, proxy)
 
 
 def canon_generic(action, params, ip, model, proxy, urls):
@@ -87,6 +96,12 @@ CAMERA_SETTINGS = {
         'method': sony_generic,
         'urls': {
             'preset_call': 'http://{ip}/command/presetposition.cgi?{params}'
+        }
+    },
+    'panasonic-generic': {
+        'method': panasonic_generic,
+        'urls': {
+            'preset_call': 'http://{ip}/cgi-bin/aw_ptz?{params}'
         }
     },
     'canon-generic': {
