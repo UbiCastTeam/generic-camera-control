@@ -24,16 +24,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger('camera_control.py')
 
+DRY_RUN = False
+
 
 def do_request(url):
-    response = requests.get(url, timeout=5)
+    response = None
+    if not DRY_RUN:
+        response = requests.get(url, timeout=5)
 
-    if not response.status_code == 200:
-        raise Exception('Request fail with status code %s and content \n %s' % (response.status_code, response.text))
-    else:
-        logger.info('Call success!')
-        logger.debug(response.status_code)
-        logger.debug(response.text)
+        if not response.status_code == 200:
+            raise Exception('Request fail with status code %s and content \n %s' % (response.status_code, response.text))
+        else:
+            logger.info('Call success!')
+            logger.debug(response.status_code)
+            logger.debug(response.text)
     return response
 
 
@@ -52,7 +56,10 @@ def canon_generic(action, params, ip, model, proxy, urls):
         url = url.replace('http://', proxy)
     logger.debug('GET SESSION ID %s' % url)
     response = do_request(url)
-    session_id = response.text.split('\n')[0].replace('s:=', '')
+    if not DRY_RUN:
+        session_id = response.text.split('\n')[0].replace('s:=', '')
+    else:
+        session_id = 'test'
     logger.debug('SESSION ID is %s' % session_id)
 
     url = urls['request_control'].format(ip=ip, session_id=session_id)
@@ -111,6 +118,8 @@ camera_control.py --model sony-generic --ip 1.2.3.4 --action preset --params "Pr
     This help
 -v, --verbose
     Verbose mode
+-d,  --dry-run
+    No request enable debug mode
 --action
     Action to apply on camera default is preset
 --params
@@ -125,7 +134,7 @@ camera_control.py --model sony-generic --ip 1.2.3.4 --action preset --params "Pr
 
 def main(argv):
     try:
-        opts, args = getopt(argv, 'hv', ['action=', 'params=', 'model=', 'ip=', 'proxy=', 'help', 'verbose'])
+        opts, args = getopt(argv, 'hvd', ['action=', 'params=', 'model=', 'ip=', 'proxy=', 'help', 'verbose', 'dry-run'])
     except GetoptError as e:
         logger.error(e, level='e')
         usage()
@@ -142,6 +151,11 @@ def main(argv):
         elif opt in ('-v', '--versbose'):
             logger.setLevel(logging.DEBUG)
             logger.debug('Verbose logs enabled')
+        elif opt in ('-d', '--dry-run'):
+            logger.setLevel(logging.DEBUG)
+            logger.debug('Dry run enabled')
+            global DRY_RUN
+            DRY_RUN = True
         elif opt == '--action':
             action = arg
         elif opt == '--params':
