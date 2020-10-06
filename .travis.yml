@@ -1,6 +1,8 @@
 language: python
 services:
   - docker
+before_install:
+  - apt update && apt install flake8 vulture
 jobs:
   include:
     - stage: check_code

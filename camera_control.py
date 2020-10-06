@@ -192,45 +192,25 @@ def main(argv):
     args = parser.parse_args()
     action = ''
     action_data = ''
-    params = ''
-    ip = None
-    model = None
-    proxy = None
-    opt = ''
-    for opt, arg in vars(args).items():
-        if opt in ('h', 'help'):
-            parser.print_help()
-            sys.exit()
-        elif opt in ('v', 'versbose'):
-            logger.setLevel(logging.DEBUG)
-            logger.debug('Verbose logs enabled')
-        elif opt in ('d', 'dry_run'):
-            logger.setLevel(logging.DEBUG)
-            logger.debug('Dry run enabled')
-            global DRY_RUN
-            DRY_RUN = True
-        elif opt == 'call_preset':
-            action = 'preset'
-            action_data = arg
-        elif opt == 'apply_settings':
-            action = 'apply-settings'
-            action_data = arg
-        elif opt == 'params':
-            params = arg
-        elif opt == 'ip':
-            ip = arg
-        elif opt == 'model':
-            model = arg
-        elif opt == 'proxy':
-            proxy = arg
-    if not ip or not model or not action:
-        logger.error('--ip, --model and an action [--call-preset, --apply-settings] are required')
-        parser.print_help()
-        sys.exit(3)
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+        logger.debug('Verbose logs enabled')
+    if args.dry_run:
+        logger.setLevel(logging.DEBUG)
+        logger.debug('Dry run enabled')
+        global DRY_RUN
+        DRY_RUN = True
+    if args.call_preset:
+        action = 'preset'
+        action_data = args.call_preset
+    if args.apply_settings:
+        action = 'apply-settings'
+        action_data = args.apply_settings
+    proxy = args.proxy
     if proxy and not proxy.endswith('/'):
         proxy += '/'
-    logger.debug('Params: action %s params %s ip %s model %s proxy %s' % (action, params, ip, model, proxy))
-    do_action(action, action_data, params, ip, model, proxy)
+    logger.debug('Params: action %s action_data %s params %s ip %s model %s proxy %s' % (action, action_data, args.params, args.ip, args.model, proxy))
+    do_action(action, action_data, args.params, args.ip, args.model, proxy)
 
 
 if __name__ == '__main__':
