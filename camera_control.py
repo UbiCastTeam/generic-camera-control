@@ -41,25 +41,36 @@ def do_request(url):
     return response
 
 
-def generic_preset(urls, ip, params, proxy):
-    url = urls['preset_call'].format(ip=ip, params=params)
+def generic_preset(urls, preset_id, ip, params, proxy):
+    url = urls['preset_call'].format(ip=ip, preset_id=preset_id)
     if proxy:
         url = url.replace('http://', proxy)
+    if params:
+        if '?' in url:
+            url = '%s&%s' % (url, params)
+        else:
+            url = '%s?%s' % (url, params)
     logger.debug('Call preset %s' % url)
     do_request(url)
 
 
-def panasonic_generic(action, params, ip, model, proxy, urls):
+def panasonic_generic(action, action_data, params, ip, model, proxy, urls):
+    if action not in ['preset']:
+        raise Exception('Action %s not supported' % action)
     if action == 'preset':
-        generic_preset(urls, ip, params, proxy)
+        generic_preset(urls, action_data, ip, params, proxy)
 
 
-def sony_generic(action, params, ip, model, proxy, urls):
+def sony_generic(action, action_data, params, ip, model, proxy, urls):
+    if action not in ['preset']:
+        raise Exception('Action %s not supported' % action)
     if action == 'preset':
-        generic_preset(urls, ip, params, proxy)
+        generic_preset(urls, action_data, ip, params, proxy)
 
 
-def canon_generic(action, params, ip, model, proxy, urls):
+def canon_generic(action, action_data, params, ip, model, proxy, urls):
+    if action not in ['apply-settings']:
+        raise Exception('Action %s not supported' % action)
     url = urls['session_id'].format(ip=ip)
     if proxy:
         url = url.replace('http://', proxy)
@@ -77,11 +88,16 @@ def canon_generic(action, params, ip, model, proxy, urls):
     logger.debug('Request control %s' % url)
     do_request(url)
 
-    if action == 'preset':
-        url = urls['preset_call'].format(ip=ip, session_id=session_id, params=params)
+    if action == 'apply-settings':
+        url = urls['settings_call'].format(ip=ip, session_id=session_id, params=action_data)
         if proxy:
             url = url.replace('http://', proxy)
-        logger.debug('Call preset %s' % url)
+        if params:
+            if '?' in url:
+                url = '%s&%s' % (url, params)
+            else:
+                url = '%s?%s' % (url, params)
+        logger.debug('Apply settings %s' % url)
         do_request(url)
 
     url = urls['leave_control'].format(ip=ip, session_id=session_id)
@@ -95,13 +111,13 @@ CAMERA_SETTINGS = {
     'sony-generic': {
         'method': sony_generic,
         'urls': {
-            'preset_call': 'http://{ip}/command/presetposition.cgi?{params}'
+            'preset_call': 'http://{ip}/command/presetposition.cgi?PresetCall={preset_id}'
         }
     },
     'panasonic-generic': {
         'method': panasonic_generic,
         'urls': {
-            'preset_call': 'http://{ip}/cgi-bin/aw_ptz?{params}'
+            'preset_call': 'http://{ip}/cgi-bin/aw_ptz?cmd=%23{preset_id}&res=1'
         }
     },
     'canon-generic': {
@@ -109,34 +125,36 @@ CAMERA_SETTINGS = {
         'urls': {
             'session_id': 'http://{ip}/-wvhttp-01-/open.cgi',
             'request_control': 'http://{ip}/-wvhttp-01-/claim.cgi?s={session_id}',
-            'preset_call': 'http://{ip}/-wvhttp-01-/control.cgi?s={session_id}&{params}',
+            'settings_call': 'http://{ip}/-wvhttp-01-/control.cgi?s={session_id}&{params}',
             'leave_control': 'http://{ip}/-wvhttp-01-/yield.cgi?s={session_id}'
         }
     }
 }
 
 
-def do_action(action, params, ip, model, proxy):
+def do_action(action, action_data, params, ip, model, proxy):
     if model not in CAMERA_SETTINGS.keys():
         logger.error('Model %s not supported' % model)
     else:
         try:
-            CAMERA_SETTINGS[model]['method'](action, params, ip, model, proxy, CAMERA_SETTINGS[model]['urls'])
+            CAMERA_SETTINGS[model]['method'](action, action_data, params, ip, model, proxy, CAMERA_SETTINGS[model]['urls'])
         except Exception as e:
             logger.error(e)
 
 
 def usage():
     print('''
-camera_control.py --model sony-generic --ip 1.2.3.4 --action preset --params "PresetCall=1,24&test=test" [--proxy "https://mm.ubicast.eu/.../audiovideo/"] [-h] [--help]
+camera_control.py --model sony-generic --ip 1.2.3.4 [--call-preset 1,24 | --apply-settings "pan=-1053&tilt=-1219&zoom=2689&ae.brightness=0&focus=auto&shade=off&shade.param=0&wb=auto"] [--params "a=b&c=d"] [--proxy "https://mm.ubicast.eu/.../audiovideo/"] [-h] [--help]
 -h, --help
     This help
 -v, --verbose
     Verbose mode
 -d,  --dry-run
     No request enable debug mode
---action
-    Action to apply on camera default is preset
+--call-preset
+    Action to call camera preset
+--apply-settings
+    Action to apply settings to a camera
 --params
     url params a=b&c=d&e=f
 --model
@@ -149,12 +167,13 @@ camera_control.py --model sony-generic --ip 1.2.3.4 --action preset --params "Pr
 
 def main(argv):
     try:
-        opts, args = getopt(argv, 'hvd', ['action=', 'params=', 'model=', 'ip=', 'proxy=', 'help', 'verbose', 'dry-run'])
+        opts, args = getopt(argv, 'hvd', ['call-preset=', 'apply-settings=', 'params=', 'model=', 'ip=', 'proxy=', 'help', 'verbose', 'dry-run'])
     except GetoptError as e:
-        logger.error(e, level='e')
+        logger.error(e)
         usage()
         sys.exit(2)
-    action = 'preset'
+    action = ''
+    action_data = ''
     params = ''
     ip = None
     model = None
@@ -171,8 +190,12 @@ def main(argv):
             logger.debug('Dry run enabled')
             global DRY_RUN
             DRY_RUN = True
-        elif opt == '--action':
-            action = arg
+        elif opt == '--call-preset':
+            action = 'preset'
+            action_data = arg
+        elif opt == '--apply-settings':
+            action = 'apply-settings'
+            action_data = arg
         elif opt == '--params':
             params = arg
         elif opt == '--ip':
@@ -181,13 +204,13 @@ def main(argv):
             model = arg
         elif opt == '--proxy':
             proxy = arg
-    if not ip or not model:
-        logger.error('ip and model are required')
+    if not ip or not model or not action:
+        logger.error('ip and model and an action [--call-preset, --apply-settings] are required')
         usage()
         sys.exit(3)
 
     logger.debug('Params: action %s params %s ip %s model %s proxy %s' % (action, params, ip, model, proxy))
-    do_action(action, params, ip, model, proxy)
+    do_action(action, action_data, params, ip, model, proxy)
 
 
 if __name__ == '__main__':
