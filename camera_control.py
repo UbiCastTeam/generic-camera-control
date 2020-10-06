@@ -144,6 +144,19 @@ def do_action(action, action_data, params, ip, model, proxy):
 
 def main(argv):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    actions_group = parser.add_mutually_exclusive_group(required=True)
+    parser.add_argument(
+        "--ip",
+        help="Camera ip. Example: 1.2.3.4",
+        type=str,
+        required=True
+    )
+    parser.add_argument(
+        "--model",
+        required=True,
+        help="Camera model in this list [sony-generic, panasonic-generic, canon-generic]",
+        type=str
+    )
     parser.add_argument(
         "-v",
         "--verbose",
@@ -156,12 +169,12 @@ def main(argv):
         help="Avoid requesting and set verbosity to DEBUG",
         action="store_true"
     )
-    parser.add_argument(
+    actions_group.add_argument(
         "--call-preset",
         help="Action to call a particular preset. Examples: 1 | R00 | 1,24",
         type=str
     )
-    parser.add_argument(
+    actions_group.add_argument(
         "--apply-settings",
         help="Action to apply settings on a camera. Example: pan=-1053&tilt=-1219&zoom=2689&ae.brightness=0",
         type=str
@@ -169,18 +182,6 @@ def main(argv):
     parser.add_argument(
         "--params",
         help="Extra url params. Example: a=b&c=d",
-        type=str
-    )
-    parser.add_argument(
-        "--ip",
-        help="Camera ip. Example: 1.2.3.4",
-        type=str,
-        required=True
-    )
-    parser.add_argument(
-        "--model",
-        required=True,
-        help="Camera model in this list [sony-generic, panasonic-generic, canon-generic]",
         type=str
     )
     parser.add_argument(
