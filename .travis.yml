@@ -1,0 +1,9 @@
+language: python
+services:
+  - docker
+jobs:
+  include:
+    - stage: check_code
+      script: make lint
+    - stage: check_code
+      script: make deadcode
