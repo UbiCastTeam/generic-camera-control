@@ -17,7 +17,7 @@ else
 endif
 
 lint:
-	flake8 --ignore=E265,E501,W503,W505 --exclude=docs/,submodules/
+	flake8 --ignore=E265,E501,W503,W505 --exclude=docs/,submodules/ .
 
 deadcode:
 	vulture .
