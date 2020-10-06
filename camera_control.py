@@ -4,7 +4,7 @@
 import logging
 import sys
 import requests
-from getopt import getopt, GetoptError
+import argparse
 
 LOG_RESTORE = '\033[1;0m'
 LOG_GRAY = '\033[37m'
@@ -142,73 +142,92 @@ def do_action(action, action_data, params, ip, model, proxy):
             logger.error(e)
 
 
-def usage():
-    print('''
-camera_control.py --model sony-generic --ip 1.2.3.4 [--call-preset 1,24 | --apply-settings "pan=-1053&tilt=-1219&zoom=2689&ae.brightness=0&focus=auto&shade=off&shade.param=0&wb=auto"] [--params "a=b&c=d"] [--proxy "https://mm.ubicast.eu/.../audiovideo/"] [-h] [--help]
--h, --help
-    This help
--v, --verbose
-    Verbose mode
--d,  --dry-run
-    No request enable debug mode
---call-preset
-    Action to call camera preset
---apply-settings
-    Action to apply settings to a camera
---params
-    url params a=b&c=d&e=f
---model
-    choice in ['sony-generic', 'canon-generic']
---ip
-    camera ip
---proxy
-    url prefix to make requests''')
-
-
 def main(argv):
-    try:
-        opts, args = getopt(argv, 'hvd', ['call-preset=', 'apply-settings=', 'params=', 'model=', 'ip=', 'proxy=', 'help', 'verbose', 'dry-run'])
-    except GetoptError as e:
-        logger.error(e)
-        usage()
-        sys.exit(2)
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Set verbosity to DEBUG",
+        action="store_true"
+    )
+    parser.add_argument(
+        "-d",
+        "--dry-run",
+        help="Avoid requesting and set verbosity to DEBUG",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--call-preset",
+        help="Action to call a particular preset. Examples: 1 | R00 | 1,24",
+        type=str
+    )
+    parser.add_argument(
+        "--apply-settings",
+        help="Action to apply settings on a camera. Example: pan=-1053&tilt=-1219&zoom=2689&ae.brightness=0",
+        type=str
+    )
+    parser.add_argument(
+        "--params",
+        help="Extra url params. Example: a=b&c=d",
+        type=str
+    )
+    parser.add_argument(
+        "--ip",
+        help="Camera ip. Example: 1.2.3.4",
+        type=str,
+        required=True
+    )
+    parser.add_argument(
+        "--model",
+        required=True,
+        help="Camera model in this list [sony-generic, panasonic-generic, canon-generic]",
+        type=str
+    )
+    parser.add_argument(
+        "--proxy",
+        help="Proxy replace base uri. Example: https://proxy/12354/camera/",
+        type=str
+    )
+    args = parser.parse_args()
     action = ''
     action_data = ''
     params = ''
     ip = None
     model = None
     proxy = None
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            usage()
+    opt = ''
+    for opt, arg in vars(args).items():
+        if opt in ('h', 'help'):
+            parser.print_help()
             sys.exit()
-        elif opt in ('-v', '--versbose'):
+        elif opt in ('v', 'versbose'):
             logger.setLevel(logging.DEBUG)
             logger.debug('Verbose logs enabled')
-        elif opt in ('-d', '--dry-run'):
+        elif opt in ('d', 'dry_run'):
             logger.setLevel(logging.DEBUG)
             logger.debug('Dry run enabled')
             global DRY_RUN
             DRY_RUN = True
-        elif opt == '--call-preset':
+        elif opt == 'call_preset':
             action = 'preset'
             action_data = arg
-        elif opt == '--apply-settings':
+        elif opt == 'apply_settings':
             action = 'apply-settings'
             action_data = arg
-        elif opt == '--params':
+        elif opt == 'params':
             params = arg
-        elif opt == '--ip':
+        elif opt == 'ip':
             ip = arg
-        elif opt == '--model':
+        elif opt == 'model':
             model = arg
-        elif opt == '--proxy':
+        elif opt == 'proxy':
             proxy = arg
     if not ip or not model or not action:
-        logger.error('ip and model and an action [--call-preset, --apply-settings] are required')
-        usage()
+        logger.error('--ip, --model and an action [--call-preset, --apply-settings] are required')
+        parser.print_help()
         sys.exit(3)
-
+    if proxy and not proxy.endswith('/'):
+        proxy += '/'
     logger.debug('Params: action %s params %s ip %s model %s proxy %s' % (action, params, ip, model, proxy))
     do_action(action, action_data, params, ip, model, proxy)
 
