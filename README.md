@@ -4,7 +4,7 @@ Script to handle camera actions
 
 ```
 camera_control.py -h
-camera_control.py --model sony-generic --ip 1.2.3.4 --action preset --params "PresetCall=1,24&test=test" [--proxy "https://mm.ubicast.eu/.../audiovideo/"] [-h] [--help]
+camera_control.py --model sony-generic --ip 1.2.3.4 [--action preset] [--params "PresetCall=1,24&test=test"] [--proxy "https://mm.ubicast.eu/.../audiovideo/"] [-h] [--help]
 -h, --help
     This help
 -v, --verbose
